@@ -1,4 +1,5 @@
 ﻿const Middle = require('../models/Middle')
+const MiddleBackup = require('../models/MiddleBackup')
 const socket = require('../configs/socket')
 const { settoconhis } = require("../utils/Conhis")
 const { Op } = require("sequelize")
@@ -88,7 +89,8 @@ exports.deleteMiddle = async (req,res)=>{
 }
 
 exports.getMiddleOrder = async (req,res)=>{
-  await Middle.findAll({
+  const { refcode } = req.params
+  await MiddleBackup.findAll({
     attributes: [
       'f_prescriptionno','f_seq','f_seqmax','f_prescriptiondate','f_prioritycode','f_prioritydesc',
       'f_durationcode','f_durationdesc','f_orderitemtype','f_orderitemgroupcode','f_orderitemcode',
@@ -107,13 +109,17 @@ exports.getMiddleOrder = async (req,res)=>{
       'f_opd_adminremark','f_opd_adminstatus','f_seq','f_seq','f_seq','f_seq','f_seq','f_seq'
     ],
     where: { 
-      f_dispensestatus: "1"
+      f_dispensestatus: "1",
+      f_referenceCode: [ refcode.split(",") ]
     },
     order: [
       ['f_lastmodified', 'DESC']
     ]
   }).then((middle) => {
-    res.status(200).json(middle)
+    let result = {
+      order: middle
+    }
+    res.status(200).json(result)
   }).catch((err) => {
     errorlog(`getMiddleOrder => ${err}`)
     res.status(400).json({ status: 400 ,message: err })
