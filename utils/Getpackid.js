@@ -24,13 +24,13 @@ exports.getpackorder = (packorder) => {
     result: {
       person: person.length === 0 ? "Not Found" : person
     },
-    MessageCode: 200,
+    MessageCode: person.length === 0 ? 404 : 200,
     Message: person.length === 0 ? "Not Found" : "OK"
   }
   return responsedata
 }
 
-const getorder =(order,hn,orderacceptdate,index)=> {
+const getorder = (order,hn,orderacceptdate,index) => {
   let current = index
   let relm = []
   do{
