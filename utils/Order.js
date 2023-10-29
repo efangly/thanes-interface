@@ -5,7 +5,7 @@ const Middle = require('../models/Middle')
 const Prescription = require('../models/Prescription')
 require("dotenv").config()
 
-exports.validateorder = (middle, frequency) => {
+exports.validateorder = (middle, frequency, wardlist) => {
   let middleorder = []
   let referror = []
   for (let i = 0; i < middle.length; i++) {
@@ -16,7 +16,7 @@ exports.validateorder = (middle, frequency) => {
         continue;
       }
     }
-    let errordetail = ValidateField(middle[i], frequency)
+    let errordetail = ValidateField(middle[i], frequency, wardlist)
     let takedate = middle[i].f_ordertargetdate == "" ? getdatetime() : middle[i].f_ordertargetdate
     if (errordetail.length !== 0) {
       referror.push({ f_referenceCode: middle[i].f_referenceCode, error: errordetail })
@@ -111,7 +111,7 @@ exports.validateorder = (middle, frequency) => {
   return referror.length === 0 ? { status: true, data: middleorder } : { status: false, data: referror }
 }
 
-const ValidateField = (middle, frequencylist) => {
+const ValidateField = (middle, frequencylist, wardlist) => {
   let errordetail = []
   if (middle.f_tomachineno == process.env.MACHINE_NO) {
     if (ValidateString(middle.f_frequencycode).status) {
@@ -122,6 +122,9 @@ const ValidateField = (middle, frequencylist) => {
     } else {
       errordetail.push(`f_frequencycode ${ValidateString(middle.f_frequencycode).result}`)
     }
+    let dosage = splitDosage(middle.f_dosagedispense)
+    let sumdosage = dosage.reduce((a, b) => Number(a) + Number(b), 0)
+    middle.f_orderqty == sumdosage ? null : errordetail.push(`f_orderqty ไม่ตรงกับวิธีการใช้ยา`)
     ValidateNumber(middle.f_dosage).status ? null : errordetail.push(`f_dosage ${ValidateNumber(middle.f_dosage).result}`)
     ValidateNumber(middle.f_orderqty).status ? null : errordetail.push(`f_orderqty ${ValidateNumber(middle.f_orderqty).result}`)
   }
@@ -167,6 +170,31 @@ const CancelOrder = async (refcode) => {
   })
 }
 
+const AddWard = async (wardcode, wardname) => {
+  await Middle.create({
+    f_status: "2"
+  }, {
+    where: { f_referenceCode: refcode }
+  })
+  await Prescription.update({
+    ProcFlg: "1"
+  }, {
+    where: { FreePrintItem_Presc1: refcode }
+  })
+}
+
+const splitDosage = (dosage) => {
+  let resultdosage = []
+  let dose = dosage.split(/[,]+/).filter(Boolean)
+  for(let i = 0;i < dose.length;i++){
+    if(dose[i] === '0'){
+      continue;
+    }
+    resultdosage.push(dose[i])
+  }
+  return resultdosage
+}
+
 exports.generateorder = (middle, frequency) => {
   let prescription = []
   let hn = ""
@@ -177,7 +205,7 @@ exports.generateorder = (middle, frequency) => {
       let datelabel = `${middle[i].f_prescriptionno.substr(6, 2)}-${middle[i].f_prescriptionno.substr(4, 2)}-${Number(middle[i].f_prescriptionno.substr(0, 4)) + 543}`
       let timedesc = frequency[freq].Frequencydesc.split(",")
       let timedesc1 = frequency[freq].Frequencydesc1.split(",")
-      let dosage = middle[i].f_dosagedispense.split(/[,0]+/).filter(Boolean)
+      let dosage = splitDosage(middle[i].f_dosagedispense)
       for (let j = 0; j < timedesc1.length; j++) {
         if (hn !== middle[i].f_hn) {
           count = 1

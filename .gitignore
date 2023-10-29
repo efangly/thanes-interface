@@ -4,5 +4,6 @@
 /node_modules
 /public/images
 /.pnp
+/logs
 .pnp.js
 .env
